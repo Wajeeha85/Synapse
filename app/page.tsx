@@ -40,13 +40,50 @@ export default function Home() {
     setError(null);
   };
 
-  const handleSuggestedQuestion = (question: string) => {
-    inputValueRef.current = question;
-    const formEvent = new Event("submit", { bubbles: true });
-    const form = document.querySelector("form");
-    form?.dispatchEvent(formEvent);
-  };
+const handleSuggestedQuestion = async (question: string) => {
+  if (isLoading) return;
 
+  const userMessage = { role: "user", content: question };
+
+  setMessages((prev) => [...prev, userMessage]);
+  setIsLoading(true);
+  setError(null);
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: messages,
+        message: question,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || `Server error: ${response.status}`);
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: data.reply },
+    ]);
+  } catch (error: any) {
+    console.error("Error:", error);
+    setError(error.message);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `❌ Error: ${error.message}`,
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+  }
+};
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const message = inputValueRef.current;
@@ -103,7 +140,7 @@ export default function Home() {
       </div>
 
       {/* Title - Perfectly Centered at Top */}
-      <div className="fixed top-0 left-0 right-0 z-20 flex justify-center pt-6">
+<div className="absolute top-0 left-0 right-0 z-20 flex justify-center pt-6">
         <motion.div
           className="text-center"
           initial={{ opacity: 0, y: -50 }}
